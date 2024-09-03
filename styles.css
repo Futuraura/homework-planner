@@ -91,11 +91,12 @@ button {
 .addshit button:hover, #closePopup:hover {
     background: rgba(255, 255, 255, 0.25);
 }
-
-.remove-assignment {
-    background: rgba(255, 0, 0, 0.3);
-}
-
+  .remove-assignment {
+      width: 60px;
+      padding: 2px 5px;
+      font-size: 0.8em;
+      margin-left: 10px;
+  }
 .remove-assignment:hover {
     background: rgba(255, 0, 0, 0.5);
 }

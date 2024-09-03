@@ -31,12 +31,20 @@
             <label for="dueDate">Due Date:</label>
             <input type="date" id="dueDate" class="date-input" required>
 
-            <button type="button" id="addTaskButton" class="date-button">Add assignment</button>
-            <button type="submit" class="date-button">Plan my homework!</button>
-
-            <div class="tasks-container" id="tasksContainer">
-                <!-- Tasks will be dynamically added here -->
+            <div id="groupContainer">
+                <button type="button" id="newGroupBtn">New Group</button>
             </div>
+
+            <input type="text" id="newGroupName" placeholder="New group name" style="display: none;">
+
+            <div id="taskInputContainer">
+                <input type="text" id="taskInput" placeholder="Enter task">
+                <button type="button" id="addTaskButton">Add Task</button>
+            </div>
+
+            <div class="tasks-container" id="tasksContainer"></div>
+
+            <button type="submit" class="date-button">Plan my homework!</button>
         </form>
     </div>
 

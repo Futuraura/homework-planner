@@ -1,63 +1,164 @@
-let taskCounter = 0;
+let taskGroups = {};
+let currentGroup = null;
 
-document.getElementById('addTaskButton').addEventListener('click', function() {
-    taskCounter++;
-    const tasksContainer = document.getElementById('tasksContainer');
-
-    const taskDiv = document.createElement('div');
-    taskDiv.className = 'task';
-    taskDiv.innerHTML = `
-        <label for="taskName${taskCounter}">Task Name:</label>
-        <input type="text" id="taskName${taskCounter}" required>
-        
-        <label for="taskDetails${taskCounter}">Task Details:</label>
-        <input type="text" id="taskDetails${taskCounter}" required>
-    `;
-
-    tasksContainer.appendChild(taskDiv);
+document.getElementById('newGroupBtn').addEventListener('click', function() {
+    const newGroupInput = document.getElementById('newGroupName');
+    newGroupInput.style.display = 'block';
+    newGroupInput.focus();
 });
-  document.getElementById('homeworkForm').addEventListener('submit', function(e) {
-      e.preventDefault();
 
-      const dateGiven = new Date(document.getElementById('dateGiven').value);
-      let dueDate = new Date(document.getElementById('dueDate').value);
-      dueDate.setDate(dueDate.getDate());
+document.getElementById('newGroupName').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const groupName = this.value.trim();
+        if (groupName) {
+            addGroup(groupName);
+            this.value = '';
+            this.style.display = 'none';
+        }
+    }
+});
 
-      const tasks = [];
-      for (let i = 1; i <= taskCounter; i++) {
-          const taskName = document.getElementById(`taskName${i}`).value;
-          const taskDetails = document.getElementById(`taskDetails${i}`).value;
-          tasks.push({ name: taskName, details: taskDetails.split('+') });
-      }
+function addGroup(groupName) {
+    if (!taskGroups[groupName]) {
+        taskGroups[groupName] = [];
+        const groupBtn = document.createElement('button');
+        groupBtn.textContent = groupName;
+        groupBtn.type = 'button';
+        groupBtn.addEventListener('click', () => selectGroup(groupName));
+        document.getElementById('groupContainer').appendChild(groupBtn);
+        selectGroup(groupName);
+    }
+}
 
-      const timeDiff = dueDate - dateGiven;
-      const daysAvailable = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+function selectGroup(groupName) {
+    currentGroup = groupName;
+    updateTaskDisplay();
+}
 
-      const tasksPerDay = Math.ceil(tasks.length / daysAvailable);
+document.getElementById('addTaskButton').addEventListener('click', addTask);
+document.getElementById('taskInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addTask();
+    }
+});
 
-      // Update the assignments object for the calendar
-      for (let i = 0; i < daysAvailable; i++) {
-          const currentDay = new Date(dateGiven);
-          currentDay.setDate(currentDay.getDate() + i);
-          const dateString = `${currentDay.getFullYear()}-${currentDay.getMonth() + 1}-${currentDay.getDate()}`;
+function addTask() {
+    const taskInput = document.getElementById('taskInput');
+    const taskName = taskInput.value.trim();
+    if (taskName && currentGroup) {
+        taskGroups[currentGroup].push(taskName);
+        taskInput.value = '';
+        updateTaskDisplay();
+    }
+}
 
-          if (!assignments[dateString]) {
-              assignments[dateString] = [];
-          }
+function updateTaskDisplay() {
+    const tasksContainer = document.getElementById('tasksContainer');
+    tasksContainer.innerHTML = '';
+    if (currentGroup && taskGroups[currentGroup]) {
+        taskGroups[currentGroup].forEach((task, index) => {
+            const taskElement = document.createElement('div');
+            taskElement.textContent = task;
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', () => removeTask(index));
+            taskElement.appendChild(removeBtn);
+            tasksContainer.appendChild(taskElement);
+        });
+    }
+}
 
-          const startIndex = i * tasksPerDay;
-          const endIndex = startIndex + tasksPerDay;
-          const tasksForTheDay = tasks.slice(startIndex, endIndex);
+function removeTask(index) {
+    if (currentGroup) {
+        taskGroups[currentGroup].splice(index, 1);
+        updateTaskDisplay();
+    }
+}
 
-          tasksForTheDay.forEach(task => {
-              assignments[dateString].push(`${task.name}: ${task.details.join(', ')}`);
-          });
-      }
+document.getElementById('homeworkForm').addEventListener('submit', function(e) {
+    e.preventDefault();
 
-      // Update the calendar to reflect the new assignments
-      updateCalendar();
-  });
-document.addEventListener('DOMContentLoaded', function() {
+    const dateGiven = new Date(document.getElementById('dateGiven').value);
+    let dueDate = new Date(document.getElementById('dueDate').value);
+    dueDate.setDate(dueDate.getDate());
+
+    const timeDiff = dueDate - dateGiven;
+    const daysAvailable = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+    // Distribute tasks across available days
+    for (let groupName in taskGroups) {
+        const tasks = taskGroups[groupName];
+        for (let i = 0; i < daysAvailable; i++) {
+            const currentDay = new Date(dateGiven);
+            currentDay.setDate(currentDay.getDate() + i);
+            const dateString = `${currentDay.getFullYear()}-${currentDay.getMonth() + 1}-${currentDay.getDate()}`;
+
+            if (!assignments[dateString]) {
+                assignments[dateString] = [];
+            }
+
+            const tasksForTheDay = tasks.slice(i * Math.ceil(tasks.length / daysAvailable), (i + 1) * Math.ceil(tasks.length / daysAvailable));
+            assignments[dateString] = assignments[dateString].concat(tasksForTheDay.map(task => `${groupName}: ${task}`));
+        }
+    }
+
+    updateCalendar();
+    this.reset();
+    taskGroups = {};
+    currentGroup = null;
+    document.getElementById('groupContainer').innerHTML = '<button type="button" id="newGroupBtn">New Group</button>';
+    document.getElementById('tasksContainer').innerHTML = '';
+});
+
+let assignmentId = 0;
+
+function addAssignment(dateString, assignment) {
+    if (!assignments[dateString]) {
+        assignments[dateString] = [];
+    }
+    assignments[dateString].push({ id: assignmentId++, text: assignment });
+    updateCalendar();
+}
+
+function showAssignments(year, month, day) {
+    const dateString = `${year}-${month + 1}-${day}`;
+    const popup = document.getElementById('assignmentPopup');
+    const popupDate = document.getElementById('popupDate');
+    const assignmentList = document.getElementById('assignmentList');
+
+    popupDate.textContent = new Date(year, month, day).toDateString();
+    assignmentList.innerHTML = '';
+
+    if (assignments[dateString] && assignments[dateString].length > 0) {
+        assignments[dateString].forEach((assignment) => {
+            const li = document.createElement('li');
+            li.textContent = assignment.text;
+            const removeButton = document.createElement('button');
+            removeButton.textContent = 'Remove';
+            removeButton.classList.add('remove-assignment');
+            removeButton.addEventListener('click', () => removeAssignment(dateString, assignment.id));
+            li.appendChild(removeButton);
+            assignmentList.appendChild(li);
+        });
+    } else {
+        assignmentList.innerHTML = '<li>No assignments for this day</li>';
+    }
+
+    popup.style.display = 'block';
+}
+
+function removeAssignment(dateString, id) {
+    if (assignments[dateString]) {
+        assignments[dateString] = assignments[dateString].filter(a => a.id !== id);
+        if (assignments[dateString].length === 0) {
+            delete assignments[dateString];
+        }
+        showAssignments(...dateString.split('-').map(Number));
+        updateCalendar();
+    }
+}document.addEventListener('DOMContentLoaded', function() {
     const subtitle = document.getElementById('subtitle');
     let subtitleText = [
         "You are Mark. You are Mark. You are Mark. You are Mark. You are Mark. You are Mark. You are Mark.",
@@ -182,52 +283,68 @@ function removeAssignment(dateString, index) {
           if (year === currentDate.getFullYear() && month === currentDate.getMonth() && day === currentDate.getDate()) {
               dayCube.classList.add('today');
           }
+                  const dateString = `${year}-${month + 1}-${day}`;
+                  if (assignments[dateString] && assignments[dateString].length > 0) {
+                      dayCube.classList.add('has-assignment');
+                  }
       
-          const dateString = `${year}-${month + 1}-${day}`;
-          if (assignments[dateString] && assignments[dateString].length > 0) {
-              dayCube.classList.add('has-assignment');
+                  dayCube.addEventListener('click', () => showAssignments(year, month, day));
+      
+                  calendarDays.appendChild(dayCube);
+              }
           }
-      
-          dayCube.addEventListener('click', () => showAssignments(year, month, day));
-      
-          calendarDays.appendChild(dayCube);
-      }
-  }  function showAssignments(year, month, day) {
-      const dateString = `${year}-${month + 1}-${day}`;
-      const popup = document.getElementById('assignmentPopup');
-      const popupDate = document.getElementById('popupDate');
-      const assignmentList = document.getElementById('assignmentList');
 
-      popupDate.textContent = new Date(year, month, day).toDateString();
-      assignmentList.innerHTML = '';
+        function removeAssignment(dateString, index) {
+            if (assignments[dateString] && assignments[dateString].length > index) {
+                assignments[dateString].splice(index, 1);
+                if (assignments[dateString].length === 0) {
+                    delete assignments[dateString];
+                }
+                updateAssignmentPopup(dateString);
+                updateCalendar();
+            }
+        }
 
-      if (assignments[dateString]) {
-          assignments[dateString].forEach((assignment, index) => {
-              const li = document.createElement('li');
-              li.textContent = assignment;
-              const removeButton = document.createElement('button');
-              removeButton.textContent = 'Remove';
-              removeButton.classList.add('remove-assignment');
-              removeButton.addEventListener('click', () => removeAssignment(dateString, index));
-              li.appendChild(removeButton);
-              assignmentList.appendChild(li);
-          });
-      } else {
-          assignmentList.innerHTML = '<li>No assignments for this day</li>';
-      }
+        function updateAssignmentPopup(dateString) {
+            const assignmentList = document.getElementById('assignmentList');
+            assignmentList.innerHTML = '';
 
-      popup.style.display = 'block';
-  }
+            if (assignments[dateString] && assignments[dateString].length > 0) {
+                assignments[dateString].forEach((assignment, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = assignment;
+                    const removeButton = document.createElement('button');
+                    removeButton.textContent = 'Remove';
+                    removeButton.classList.add('remove-assignment');
+                    removeButton.addEventListener('click', () => removeAssignment(dateString, index));
+                    li.appendChild(removeButton);
+                    assignmentList.appendChild(li);
+                });
+            } else {
+                assignmentList.innerHTML = '<li>No assignments for this day</li>';
+            }
+        }
 
+        function showAssignments(year, month, day) {
+            const dateString = `${year}-${month + 1}-${day}`;
+            const popup = document.getElementById('assignmentPopup');
+            const popupDate = document.getElementById('popupDate');
+
+            popupDate.textContent = new Date(year, month, day).toDateString();
+            updateAssignmentPopup(dateString);
+
+            popup.style.display = 'block';
+        }
   function removeAssignment(dateString, index) {
-      assignments[dateString].splice(index, 1);
-      if (assignments[dateString].length === 0) {
-          delete assignments[dateString];
+      if (assignments[dateString] && assignments[dateString].length > index) {
+          assignments[dateString].splice(index, 1);
+          if (assignments[dateString].length === 0) {
+              delete assignments[dateString];
+          }
+          showAssignments(...dateString.split('-').map(Number));
+          updateCalendar();
       }
-      showAssignments(...dateString.split('-').map(Number));
-      updateCalendar();
   }
-
   document.getElementById('closePopup').addEventListener('click', () => {
       document.getElementById('assignmentPopup').style.display = 'none';
   });
